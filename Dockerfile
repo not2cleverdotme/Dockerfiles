@@ -2,6 +2,8 @@
 FROM mcr.microsoft.com/powershell:7.4-windowsservercore-ltsc2022
 
 # Build-time toggles for optional installs
+ARG INSTALL_DOTNET=true
+ARG INSTALL_NUGET=true
 ARG INSTALL_AZ=true
 ARG INSTALL_PESTER=true
 ARG INSTALL_SQLSERVER=true
@@ -13,46 +15,56 @@ RUN powershell -NoLogo -NoProfile -Command "$ErrorActionPreference='Stop'; $prot
 # Set PowerShell as the default SHELL for subsequent RUN commands
 SHELL ["pwsh", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
-# Install NuGet CLI and expose on PATH
+# Install NuGet CLI and expose on PATH (conditionally)
 RUN \
-  $nugetDir = 'C:\\tools\\nuget'; New-Item -ItemType Directory -Path $nugetDir -Force | Out-Null; \
-  $url = 'https://dist.nuget.org/win-x86-commandline/latest/nuget.exe'; \
-  $out = Join-Path $nugetDir 'nuget.exe'; \
-  $downloaded = $false; \
-  try { \
-    Invoke-WebRequest -UseBasicParsing $url -OutFile $out -ErrorAction Stop; \
-    $downloaded = $true; \
-  } catch { \
-    Write-Warning 'NuGet download failed due to TLS/certificate. Falling back to -SkipCertificateCheck with signature validation.'; \
-  }; \
-  if (-not $downloaded) { \
-    Invoke-WebRequest -UseBasicParsing -SkipCertificateCheck $url -OutFile $out -ErrorAction Stop; \
-    $sig = Get-AuthenticodeSignature -FilePath $out; \
-    if ($sig.Status -ne 'Valid' -or -not ($sig.SignerCertificate.Subject -like '*Microsoft*')) { \
-      Remove-Item -Path $out -Force -ErrorAction SilentlyContinue; \
-      throw "NuGet.exe signature validation failed: $($sig.Status)"; \
-    } \
-  }; \
-  & $out | Select-Object -First 1 | Out-String | Write-Host
+  if ($env:INSTALL_NUGET -eq 'true') { \
+    $nugetDir = 'C:\\tools\\nuget'; New-Item -ItemType Directory -Path $nugetDir -Force | Out-Null; \
+    $url = 'https://dist.nuget.org/win-x86-commandline/latest/nuget.exe'; \
+    $out = Join-Path $nugetDir 'nuget.exe'; \
+    $downloaded = $false; \
+    try { \
+      Invoke-WebRequest -UseBasicParsing $url -OutFile $out -ErrorAction Stop; \
+      $downloaded = $true; \
+    } catch { \
+      Write-Warning 'NuGet download failed due to TLS/certificate. Falling back to -SkipCertificateCheck with signature validation.'; \
+    }; \
+    if (-not $downloaded) { \
+      Invoke-WebRequest -UseBasicParsing -SkipCertificateCheck $url -OutFile $out -ErrorAction Stop; \
+      $sig = Get-AuthenticodeSignature -FilePath $out; \
+      if ($sig.Status -ne 'Valid' -or -not ($sig.SignerCertificate.Subject -like '*Microsoft*')) { \
+        Remove-Item -Path $out -Force -ErrorAction SilentlyContinue; \
+        throw "NuGet.exe signature validation failed: $($sig.Status)"; \
+      } \
+    }; \
+    & $out | Select-Object -First 1 | Out-String | Write-Host; \
+    Write-Host 'NuGet CLI installed successfully'; \
+  } else { \
+    Write-Host 'Skipping NuGet CLI installation (INSTALL_NUGET=false)'; \
+  }
 
-# Install .NET SDK (LTS) using official dotnet-install script
+# Install .NET SDK (LTS) using official dotnet-install script (conditionally)
 RUN \
-  $dotnetDir = 'C:\\tools\\dotnet'; New-Item -ItemType Directory -Path $dotnetDir -Force | Out-Null; \
-  $script = 'C:\\Windows\\Temp\\dotnet-install.ps1'; \
-  $url = 'https://dot.net/v1/dotnet-install.ps1'; \
-  try { \
-    curl.exe -L $url -o $script; \
-  } catch { \
-    Write-Warning 'curl.exe failed; falling back to Invoke-WebRequest -SkipCertificateCheck'; \
-    Invoke-WebRequest -UseBasicParsing -SkipCertificateCheck $url -OutFile $script -ErrorAction Stop; \
-  }; \
-  & $script -Channel 'LTS' -InstallDir $dotnetDir -NoPath; \
-  $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'; \
-  $env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE = '1'; \
-  $env:DOTNET_NOLOGO = '1'; \
-  & (Join-Path $dotnetDir 'dotnet.exe') --info | Select-Object -First 20 | Out-String | Write-Host; \
-  Remove-Item -Path $script -Force -ErrorAction SilentlyContinue; \
-  Remove-Item -Path 'C:\\Windows\\Temp\\*' -Recurse -Force -ErrorAction SilentlyContinue
+  if ($env:INSTALL_DOTNET -eq 'true') { \
+    $dotnetDir = 'C:\\tools\\dotnet'; New-Item -ItemType Directory -Path $dotnetDir -Force | Out-Null; \
+    $script = 'C:\\Windows\\Temp\\dotnet-install.ps1'; \
+    $url = 'https://dot.net/v1/dotnet-install.ps1'; \
+    try { \
+      curl.exe -L $url -o $script; \
+    } catch { \
+      Write-Warning 'curl.exe failed; falling back to Invoke-WebRequest -SkipCertificateCheck'; \
+      Invoke-WebRequest -UseBasicParsing -SkipCertificateCheck $url -OutFile $script -ErrorAction Stop; \
+    }; \
+    & $script -Channel 'LTS' -InstallDir $dotnetDir -NoPath; \
+    $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'; \
+    $env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE = '1'; \
+    $env:DOTNET_NOLOGO = '1'; \
+    & (Join-Path $dotnetDir 'dotnet.exe') --info | Select-Object -First 20 | Out-String | Write-Host; \
+    Remove-Item -Path $script -Force -ErrorAction SilentlyContinue; \
+    Remove-Item -Path 'C:\\Windows\\Temp\\*' -Recurse -Force -ErrorAction SilentlyContinue; \
+    Write-Host '.NET SDK installed successfully'; \
+  } else { \
+    Write-Host 'Skipping .NET SDK installation (INSTALL_DOTNET=false)'; \
+  }
 
 # Persist PATH updates for NuGet and .NET, and optimize .NET CLI behavior
 ENV DOTNET_ROOT="C:\\tools\\dotnet"
