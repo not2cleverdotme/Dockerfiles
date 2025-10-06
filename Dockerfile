@@ -66,7 +66,22 @@ RUN \
   $ErrorActionPreference = 'Stop'; \
   . 'C:\\Windows\\Temp\\retry.ps1'; \
   $gitInstaller = 'C:\\Windows\\Temp\\Git-64-bit.exe'; \
-  Invoke-WithRetry { Invoke-WebRequest -UseBasicParsing 'https://github.com/git-for-windows/git/releases/latest/download/Git-64-bit.exe' -OutFile $gitInstaller } -Retries 5 -DelaySeconds 10; \
+  $url = 'https://github.com/git-for-windows/git/releases/latest/download/Git-64-bit.exe'; \
+  $downloaded = $false; \
+  try { \
+    curl.exe -L -H "User-Agent: curl" $url -o $gitInstaller; \
+    $downloaded = $true; \
+  } catch { \
+    Write-Warning 'curl.exe failed; falling back to Invoke-WebRequest -SkipCertificateCheck with headers'; \
+  }; \
+  if (-not $downloaded) { \
+    Invoke-WebRequest -UseBasicParsing -SkipCertificateCheck -Headers @{ 'User-Agent'='Mozilla/5.0' } -Uri $url -OutFile $gitInstaller -ErrorAction Stop; \
+  }; \
+  if ((Get-Item $gitInstaller).Length -lt 1000000) { \
+    Write-Warning 'Downloaded file appears too small; first lines:'; \
+    Get-Content -Path $gitInstaller -TotalCount 20 | Out-String | Write-Host; \
+    throw 'Git installer download returned HTML/error instead of EXE'; \
+  }; \
   Start-Process -FilePath $gitInstaller -ArgumentList '/VERYSILENT','/NORESTART','/NOCANCEL','/SP-','/SUPPRESSMSGBOXES','/DIR="C:\\Program Files\\Git"' -Wait; \
   & 'C:\\Program Files\\Git\\cmd\\git.exe' --version | Out-String | Write-Host
 
