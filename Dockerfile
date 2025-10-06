@@ -69,18 +69,18 @@ RUN \
   $url = 'https://github.com/git-for-windows/git/releases/latest/download/Git-64-bit.exe'; \
   $downloaded = $false; \
   try { \
-    curl.exe -L -H "User-Agent: curl" $url -o $gitInstaller; \
+    Invoke-WebRequest -Uri $url -OutFile $gitInstaller -UserAgent 'curl/8.0' -Headers @{ 'Accept'='application/octet-stream' } -MaximumRedirection 10 -SkipCertificateCheck -ErrorAction Stop; \
     $downloaded = $true; \
   } catch { \
-    Write-Warning 'curl.exe failed; falling back to Invoke-WebRequest -SkipCertificateCheck with headers'; \
+    Write-Warning 'Primary Git download failed; retrying'; \
   }; \
   if (-not $downloaded) { \
-    Invoke-WebRequest -UseBasicParsing -SkipCertificateCheck -Headers @{ 'User-Agent'='Mozilla/5.0' } -Uri $url -OutFile $gitInstaller -ErrorAction Stop; \
+    Invoke-WithRetry { Invoke-WebRequest -Uri $url -OutFile $gitInstaller -UserAgent 'Mozilla/5.0' -Headers @{ 'Accept'='application/octet-stream' } -MaximumRedirection 10 -SkipCertificateCheck -ErrorAction Stop } -Retries 3 -DelaySeconds 10; \
   }; \
-  if ((Get-Item $gitInstaller).Length -lt 1000000) { \
-    Write-Warning 'Downloaded file appears too small; first lines:'; \
-    Get-Content -Path $gitInstaller -TotalCount 20 | Out-String | Write-Host; \
-    throw 'Git installer download returned HTML/error instead of EXE'; \
+  if (-not (Test-Path $gitInstaller) -or (Get-Item $gitInstaller).Length -lt 1000000) { \
+    Write-Warning 'Downloaded file appears invalid; first lines:'; \
+    if (Test-Path $gitInstaller) { Get-Content -Path $gitInstaller -TotalCount 20 | Out-String | Write-Host }; \
+    throw 'Git installer download failed or returned HTML/error'; \
   }; \
   Start-Process -FilePath $gitInstaller -ArgumentList '/VERYSILENT','/NORESTART','/NOCANCEL','/SP-','/SUPPRESSMSGBOXES','/DIR="C:\\Program Files\\Git"' -Wait; \
   & 'C:\\Program Files\\Git\\cmd\\git.exe' --version | Out-String | Write-Host
