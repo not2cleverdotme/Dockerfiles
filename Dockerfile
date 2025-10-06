@@ -34,22 +34,10 @@ RUN \
     Invoke-WithRetry { Invoke-WebRequest -UseBasicParsing $url -OutFile $out -ErrorAction Stop } -Retries 5 -DelaySeconds 10; \
     $downloaded = $true; \
   } catch { \
-    Write-Warning 'NuGet download failed due to TLS/certificate. Falling back to HttpClient bypass with signature validation.'; \
+    Write-Warning 'NuGet download failed due to TLS/certificate. Falling back to -SkipCertificateCheck with signature validation.'; \
   }; \
   if (-not $downloaded) { \
-    $code = @'
-using System; using System.Net.Http; using System.Net.Security; using System.Security.Cryptography.X509Certificates; using System.IO;
-public static class NugetDl {
-  public static void Fetch(string url, string path) {
-    var handler = new HttpClientHandler { ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator };
-    using var client = new HttpClient(handler);
-    var bytes = client.GetByteArrayAsync(url).GetAwaiter().GetResult();
-    File.WriteAllBytes(path, bytes);
-  }
-}
-'@; \
-    Add-Type -TypeDefinition $code -Language CSharp; \
-    [NugetDl]::Fetch($url, $out); \
+    Invoke-WebRequest -UseBasicParsing -SkipCertificateCheck $url -OutFile $out -ErrorAction Stop; \
     $sig = Get-AuthenticodeSignature -FilePath $out; \
     if ($sig.Status -ne 'Valid' -or -not ($sig.SignerCertificate.Subject -like '*Microsoft*')) { \
       Remove-Item -Path $out -Force -ErrorAction SilentlyContinue; \
