@@ -5,8 +5,6 @@ FROM mcr.microsoft.com/powershell:7.4-windowsservercore-ltsc2022
 ARG INSTALL_AZ=true
 ARG INSTALL_PESTER=true
 ARG INSTALL_SQLSERVER=true
-ARG INSTALL_PSREADLINE=true
-ARG INSTALL_AZUREAD=false
 
 # Ensure TLS protocols are broadly enabled at the OS level (Schannel)
 # and set .NET strong crypto and system-default TLS versions
@@ -17,7 +15,6 @@ SHELL ["pwsh", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference
 
 # Install NuGet CLI and expose on PATH
 RUN \
-  $ErrorActionPreference = 'Stop'; \
   $nugetDir = 'C:\\tools\\nuget'; New-Item -ItemType Directory -Path $nugetDir -Force | Out-Null; \
   $url = 'https://dist.nuget.org/win-x86-commandline/latest/nuget.exe'; \
   $out = Join-Path $nugetDir 'nuget.exe'; \
@@ -40,7 +37,6 @@ RUN \
 
 # Install .NET SDK (LTS) using official dotnet-install script
 RUN \
-  $ErrorActionPreference = 'Stop'; \
   $dotnetDir = 'C:\\tools\\dotnet'; New-Item -ItemType Directory -Path $dotnetDir -Force | Out-Null; \
   $script = 'C:\\Windows\\Temp\\dotnet-install.ps1'; \
   $url = 'https://dot.net/v1/dotnet-install.ps1'; \
@@ -51,15 +47,22 @@ RUN \
     Invoke-WebRequest -UseBasicParsing -SkipCertificateCheck $url -OutFile $script -ErrorAction Stop; \
   }; \
   & $script -Channel 'LTS' -InstallDir $dotnetDir -NoPath; \
-  & (Join-Path $dotnetDir 'dotnet.exe') --info | Select-Object -First 20 | Out-String | Write-Host
+  $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'; \
+  $env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE = '1'; \
+  $env:DOTNET_NOLOGO = '1'; \
+  & (Join-Path $dotnetDir 'dotnet.exe') --info | Select-Object -First 20 | Out-String | Write-Host; \
+  Remove-Item -Path $script -Force -ErrorAction SilentlyContinue; \
+  Remove-Item -Path 'C:\\Windows\\Temp\\*' -Recurse -Force -ErrorAction SilentlyContinue
 
-# Persist PATH updates for NuGet and .NET
+# Persist PATH updates for NuGet and .NET, and optimize .NET CLI behavior
 ENV DOTNET_ROOT="C:\\tools\\dotnet"
 ENV PATH="C:\\tools\\nuget;C:\\tools\\dotnet;C:\\Program Files\\PowerShell\\7;${PATH}"
+ENV DOTNET_CLI_TELEMETRY_OPTOUT="1"
+ENV DOTNET_SKIP_FIRST_TIME_EXPERIENCE="1"
+ENV DOTNET_NOLOGO="1"
 
 # Trust PSGallery, ensure NuGet provider and PowerShellGet are present and current
 RUN \
-  $ErrorActionPreference = 'Stop'; \
   try { Set-PSRepository -Name 'PSGallery' -InstallationPolicy Trusted -ErrorAction Stop } catch { }; \
   Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Scope AllUsers; \
   Install-Module -Name PowerShellGet -Force -Scope AllUsers -AllowClobber -AcceptLicense; \
@@ -67,18 +70,17 @@ RUN \
 
 # Install commonly used modules (conditionally), including Az
 RUN \
-  $ErrorActionPreference = 'Stop'; \
   function InstallWithRetry { param([string]$Name,[hashtable]$Params); for($i=0;$i -lt 3;$i++){ try { Install-Module -Name $Name @Params; return } catch { Start-Sleep -Seconds 8 } }; throw "Failed to install $Name" }; \
   if ($env:INSTALL_AZ -eq 'true') { InstallWithRetry 'Az' @{ Repository='PSGallery'; Force=$true; AllowClobber=$true; Scope='AllUsers'; AcceptLicense=$true } }; \
   if ($env:INSTALL_PESTER -eq 'true') { InstallWithRetry 'Pester' @{ Force=$true; Scope='AllUsers'; AcceptLicense=$true } }; \
   if ($env:INSTALL_SQLSERVER -eq 'true') { InstallWithRetry 'SqlServer' @{ Force=$true; Scope='AllUsers'; AcceptLicense=$true } }; \
-  if ($env:INSTALL_PSREADLINE -eq 'true') { InstallWithRetry 'PSReadLine' @{ Force=$true; Scope='AllUsers'; AcceptLicense=$true } }; \
-  if ($env:INSTALL_AZUREAD -eq 'true') { InstallWithRetry 'AzureAD' @{ Force=$true; Scope='AllUsers'; AllowClobber=$true; AcceptLicense=$true } }; \
-  if ($env:INSTALL_AZ -eq 'true') { Import-Module Az.Accounts -ErrorAction Stop; (Get-Module -ListAvailable Az | Select-Object -First 1).Version | Out-String | Write-Host }
+  if ($env:INSTALL_AZ -eq 'true') { Import-Module Az.Accounts -ErrorAction Stop; (Get-Module -ListAvailable Az | Select-Object -First 1).Version | Out-String | Write-Host }; \
+  Write-Host 'Cleaning up package manager caches...'; \
+  Get-ChildItem -Path "$env:LOCALAPPDATA\\NuGet\\Cache" -Recurse -ErrorAction SilentlyContinue | Remove-Item -Force -Recurse -ErrorAction SilentlyContinue; \
+  Get-ChildItem -Path "$env:ProgramData\\Microsoft\\Windows\\PowerShell\\PowerShellGet" -Recurse -ErrorAction SilentlyContinue | Remove-Item -Force -Recurse -ErrorAction SilentlyContinue
 
 # Set an all-users, all-hosts PowerShell profile to prefer system-default TLS
 RUN \
-  $ErrorActionPreference = 'Stop'; \
   $content = 'try { [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::SystemDefault -bor 3072 -bor 768 -bor 192 } catch { }'; \
   $profiles = 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\profile.ps1','C:\\Program Files\\PowerShell\\7\\profile.ps1'; \
   foreach ($p in $profiles) { $dir = Split-Path -Path $p; if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }; Set-Content -Path $p -Value $content -Encoding UTF8 }
