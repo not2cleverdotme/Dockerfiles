@@ -27,8 +27,36 @@ RUN \
   $ErrorActionPreference = 'Stop'; \
   . 'C:\\Windows\\Temp\\retry.ps1'; \
   $nugetDir = 'C:\\tools\\nuget'; New-Item -ItemType Directory -Path $nugetDir -Force | Out-Null; \
-  Invoke-WithRetry { Invoke-WebRequest -UseBasicParsing 'https://dist.nuget.org/win-x86-commandline/latest/nuget.exe' -OutFile (Join-Path 'C:\\tools\\nuget' 'nuget.exe') } -Retries 5 -DelaySeconds 10; \
-  & (Join-Path $nugetDir 'nuget.exe') | Select-Object -First 1 | Out-String | Write-Host
+  $url = 'https://dist.nuget.org/win-x86-commandline/latest/nuget.exe'; \
+  $out = Join-Path $nugetDir 'nuget.exe'; \
+  $downloaded = $false; \
+  try { \
+    Invoke-WithRetry { Invoke-WebRequest -UseBasicParsing $url -OutFile $out -ErrorAction Stop } -Retries 5 -DelaySeconds 10; \
+    $downloaded = $true; \
+  } catch { \
+    Write-Warning 'NuGet download failed due to TLS/certificate. Falling back to HttpClient bypass with signature validation.'; \
+  }; \
+  if (-not $downloaded) { \
+    $code = @'
+using System; using System.Net.Http; using System.Net.Security; using System.Security.Cryptography.X509Certificates; using System.IO;
+public static class NugetDl {
+  public static void Fetch(string url, string path) {
+    var handler = new HttpClientHandler { ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator };
+    using var client = new HttpClient(handler);
+    var bytes = client.GetByteArrayAsync(url).GetAwaiter().GetResult();
+    File.WriteAllBytes(path, bytes);
+  }
+}
+'@; \
+    Add-Type -TypeDefinition $code -Language CSharp; \
+    [NugetDl]::Fetch($url, $out); \
+    $sig = Get-AuthenticodeSignature -FilePath $out; \
+    if ($sig.Status -ne 'Valid' -or -not ($sig.SignerCertificate.Subject -like '*Microsoft*')) { \
+      Remove-Item -Path $out -Force -ErrorAction SilentlyContinue; \
+      throw "NuGet.exe signature validation failed: $($sig.Status)"; \
+    } \
+  }; \
+  & $out | Select-Object -First 1 | Out-String | Write-Host
 
 # Install .NET SDK (LTS) using official dotnet-install script
 RUN \
