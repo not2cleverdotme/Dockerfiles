@@ -1,4 +1,4 @@
-# Windows Server 2022 PowerShell Container (TLS, NuGet, Az, .NET, Git)
+# Windows Server 2022 PowerShell Container (TLS, NuGet, Az, .NET)
 
 A Windows container image based on Windows Server 2022 + PowerShell 7 that is preconfigured for secure automation and Azure work:
 
@@ -7,7 +7,6 @@ A Windows container image based on Windows Server 2022 + PowerShell 7 that is pr
 - Trusted PowerShell Gallery and NuGet provider
 - Core PowerShell modules: Az, Pester, SqlServer, PSReadLine, AzureAD
 - .NET SDK (LTS) installed via official dotnet-install
-- Git for Windows installed and on PATH
 
 This image is intended for Windows hosts using Windows containers (Hyper‑V or process isolation). It is not for Linux hosts.
 
@@ -83,7 +82,6 @@ docker run -it --isolation=hyperv -v C:\work:C:\work -w C:\work --entrypoint pws
 - PowerShellGet updated, PSGallery trusted
 - Modules installed for all users: `Az`, `Pester`, `SqlServer`, `PSReadLine`, `AzureAD`
 - .NET SDK (LTS) installed to `C:\tools\dotnet` (`DOTNET_ROOT` set, on PATH)
-- Git for Windows in `C:\Program Files\Git\cmd` and on PATH
 - PowerShell profile sets broad TLS preference at startup
 
 ---
@@ -120,14 +118,7 @@ Invoke-Pester -Version
 Import-Module SqlServer
 ```
 
-### Git
-
-```powershell
-git --version
-git clone https://github.com/contoso/repo.git
-```
-
-For private feeds or Git over HTTPS, configure credentials (consider Git Credential Manager or PATs). If your environment uses enterprise CAs, see Certificates below.
+For private feeds over HTTPS, configure credentials (PATs) and enterprise CAs if required.
 
 ---
 
@@ -142,7 +133,7 @@ If you want to restrict to TLS 1.2/1.3, remove TLS 1.0/1.1 enablement in the Doc
 ## Certificates and proxies
 
 - Corporate proxies: Configure `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY` at build/run if needed.
-- Enterprise CAs: Import root/intermediate certs during build or mount at runtime and add them to `LocalMachine` stores so Git/PowerShell/.NET trust them.
+- Enterprise CAs: Import root/intermediate certs during build or mount at runtime and add them to `LocalMachine` stores so PowerShell/.NET trust them.
 
 ---
 
@@ -158,14 +149,12 @@ If you want to restrict to TLS 1.2/1.3, remove TLS 1.0/1.1 enablement in the Doc
   - Many Windows container images (including ServerCore LTSC) are only available for amd64; Windows containers on ARM are limited
 - PowerShell module restore:
   - If PSGallery is unavailable at build time, rerun `Install-Module` commands inside the container
-- Git TLS trust:
-  - Import enterprise CA certs and ensure Git uses the Windows cert store (`schannel` is default on Git for Windows)
 
 ---
 
 ## Extending the image (optional)
 
-- Pin versions: Pin .NET channel/version, Git version, and PowerShell module versions for reproducible builds.
+- Pin versions: Pin .NET channel/version and PowerShell module versions for reproducible builds.
 - Non-admin user: Add a dedicated user for least-privilege scenarios.
 - HEALTHCHECK: Add a simple health check if running services.
 
@@ -173,4 +162,4 @@ If you want to restrict to TLS 1.2/1.3, remove TLS 1.0/1.1 enablement in the Doc
 
 ## License
 
-This repository provides a Dockerfile and setup guidance. Software installed inside the image is subject to their respective licenses (Windows container base image, PowerShell, .NET, Git for Windows, PowerShell modules, etc.). Review and comply with applicable license terms.
+This repository provides a Dockerfile and setup guidance. Software installed inside the image is subject to their respective licenses (Windows container base image, PowerShell, .NET, PowerShell modules, etc.). Review and comply with applicable license terms.

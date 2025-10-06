@@ -61,33 +61,9 @@ RUN \
   & $script -Channel 'LTS' -InstallDir $dotnetDir -NoPath; \
   & (Join-Path $dotnetDir 'dotnet.exe') --info | Select-Object -First 20 | Out-String | Write-Host
 
-# Install Git for Windows (silent)
-RUN \
-  $ErrorActionPreference = 'Stop'; \
-  . 'C:\\Windows\\Temp\\retry.ps1'; \
-  $gitInstaller = 'C:\\Windows\\Temp\\Git-64-bit.exe'; \
-  $url = 'https://github.com/git-for-windows/git/releases/latest/download/Git-64-bit.exe'; \
-  $downloaded = $false; \
-  try { \
-    Invoke-WebRequest -Uri $url -OutFile $gitInstaller -UserAgent 'curl/8.0' -Headers @{ 'Accept'='application/octet-stream' } -MaximumRedirection 10 -SkipCertificateCheck -ErrorAction Stop; \
-    $downloaded = $true; \
-  } catch { \
-    Write-Warning 'Primary Git download failed; retrying'; \
-  }; \
-  if (-not $downloaded) { \
-    Invoke-WithRetry { Invoke-WebRequest -Uri $url -OutFile $gitInstaller -UserAgent 'Mozilla/5.0' -Headers @{ 'Accept'='application/octet-stream' } -MaximumRedirection 10 -SkipCertificateCheck -ErrorAction Stop } -Retries 3 -DelaySeconds 10; \
-  }; \
-  if (-not (Test-Path $gitInstaller) -or (Get-Item $gitInstaller).Length -lt 1000000) { \
-    Write-Warning 'Downloaded file appears invalid; first lines:'; \
-    if (Test-Path $gitInstaller) { Get-Content -Path $gitInstaller -TotalCount 20 | Out-String | Write-Host }; \
-    throw 'Git installer download failed or returned HTML/error'; \
-  }; \
-  Start-Process -FilePath $gitInstaller -ArgumentList '/VERYSILENT','/NORESTART','/NOCANCEL','/SP-','/SUPPRESSMSGBOXES','/DIR="C:\\Program Files\\Git"' -Wait; \
-  & 'C:\\Program Files\\Git\\cmd\\git.exe' --version | Out-String | Write-Host
-
-# Persist PATH updates for NuGet, .NET, and Git
+# Persist PATH updates for NuGet and .NET
 ENV DOTNET_ROOT="C:\\tools\\dotnet"
-ENV PATH="C:\\tools\\nuget;C:\\tools\\dotnet;C:\\Program Files\\Git\\cmd;C:\\Program Files\\PowerShell\\7;${PATH}"
+ENV PATH="C:\\tools\\nuget;C:\\tools\\dotnet;C:\\Program Files\\PowerShell\\7;${PATH}"
 
 # Trust PSGallery, ensure NuGet provider and PowerShellGet are present and current
 RUN \
