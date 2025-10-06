@@ -19,17 +19,19 @@ RUN \
   foreach ($proto in $protocols) { \
     foreach ($role in 'Client','Server') { \
       $key = "HKLM\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\$proto\$role"; \
-      & reg.exe add $key /f | Out-Null; \
-      & reg.exe add $key /v Enabled /t REG_DWORD /d 1 /f | Out-Null; \
-      & reg.exe add $key /v DisabledByDefault /t REG_DWORD /d 0 /f | Out-Null; \
+      Start-Process -FilePath reg.exe -ArgumentList @('add', $key, '/f') -Wait -NoNewWindow; \
+      Start-Process -FilePath reg.exe -ArgumentList @('add', $key, '/v', 'Enabled', '/t', 'REG_DWORD', '/d', '1', '/f') -Wait -NoNewWindow; \
+      Start-Process -FilePath reg.exe -ArgumentList @('add', $key, '/v', 'DisabledByDefault', '/t', 'REG_DWORD', '/d', '0', '/f') -Wait -NoNewWindow; \
     } \
   }; \
-  & reg.exe add 'HKLM\SOFTWARE\Microsoft\.NETFramework\v4.0.30319' /f | Out-Null; \
-  & reg.exe add 'HKLM\SOFTWARE\Microsoft\.NETFramework\v4.0.30319' /v SchUseStrongCrypto /t REG_DWORD /d 1 /f | Out-Null; \
-  & reg.exe add 'HKLM\SOFTWARE\Microsoft\.NETFramework\v4.0.30319' /v SystemDefaultTlsVersions /t REG_DWORD /d 1 /f | Out-Null; \
-  & reg.exe add 'HKLM\SOFTWARE\WOW6432Node\Microsoft\.NETFramework\v4.0.30319' /f | Out-Null; \
-  & reg.exe add 'HKLM\SOFTWARE\WOW6432Node\Microsoft\.NETFramework\v4.0.30319' /v SchUseStrongCrypto /t REG_DWORD /d 1 /f | Out-Null; \
-  & reg.exe add 'HKLM\SOFTWARE\WOW6432Node\Microsoft\.NETFramework\v4.0.30319' /v SystemDefaultTlsVersions /t REG_DWORD /d 1 /f | Out-Null
+  $rk1 = 'HKLM\SOFTWARE\Microsoft\.NETFramework\v4.0.30319'; \
+  $rk2 = 'HKLM\SOFTWARE\WOW6432Node\Microsoft\.NETFramework\v4.0.30319'; \
+  Start-Process -FilePath reg.exe -ArgumentList @('add', $rk1, '/f') -Wait -NoNewWindow; \
+  Start-Process -FilePath reg.exe -ArgumentList @('add', $rk1, '/v', 'SchUseStrongCrypto', '/t', 'REG_DWORD', '/d', '1', '/f') -Wait -NoNewWindow; \
+  Start-Process -FilePath reg.exe -ArgumentList @('add', $rk1, '/v', 'SystemDefaultTlsVersions', '/t', 'REG_DWORD', '/d', '1', '/f') -Wait -NoNewWindow; \
+  Start-Process -FilePath reg.exe -ArgumentList @('add', $rk2, '/f') -Wait -NoNewWindow; \
+  Start-Process -FilePath reg.exe -ArgumentList @('add', $rk2, '/v', 'SchUseStrongCrypto', '/t', 'REG_DWORD', '/d', '1', '/f') -Wait -NoNewWindow; \
+  Start-Process -FilePath reg.exe -ArgumentList @('add', $rk2, '/v', 'SystemDefaultTlsVersions', '/t', 'REG_DWORD', '/d', '1', '/f') -Wait -NoNewWindow
 
 # Common helper: retry wrapper available in subsequent RUN steps via a temporary script
 RUN \
