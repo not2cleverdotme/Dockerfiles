@@ -49,10 +49,15 @@ RUN \
 # Install .NET SDK (LTS) using official dotnet-install script
 RUN \
   $ErrorActionPreference = 'Stop'; \
-  . 'C:\\Windows\\Temp\\retry.ps1'; \
   $dotnetDir = 'C:\\tools\\dotnet'; New-Item -ItemType Directory -Path $dotnetDir -Force | Out-Null; \
   $script = 'C:\\Windows\\Temp\\dotnet-install.ps1'; \
-  Invoke-WithRetry { Invoke-WebRequest -UseBasicParsing 'https://dot.net/v1/dotnet-install.ps1' -OutFile $script } -Retries 5 -DelaySeconds 10; \
+  $url = 'https://dot.net/v1/dotnet-install.ps1'; \
+  try { \
+    curl.exe -L $url -o $script; \
+  } catch { \
+    Write-Warning 'curl.exe failed; falling back to Invoke-WebRequest -SkipCertificateCheck'; \
+    Invoke-WebRequest -UseBasicParsing -SkipCertificateCheck $url -OutFile $script -ErrorAction Stop; \
+  }; \
   & $script -Channel 'LTS' -InstallDir $dotnetDir -NoPath; \
   & (Join-Path $dotnetDir 'dotnet.exe') --info | Select-Object -First 20 | Out-String | Write-Host
 
