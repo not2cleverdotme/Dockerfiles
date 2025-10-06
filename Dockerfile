@@ -13,16 +13,23 @@ ARG INSTALL_AZUREAD=false
 
 # Ensure TLS protocols are broadly enabled at the OS level (Schannel)
 # and set .NET strong crypto and system-default TLS versions
-RUN ["cmd", "/S", "/C", "reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.0\\Client\" /f && reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.0\\Client\" /v Enabled /t REG_DWORD /d 1 /f && reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.0\\Client\" /v DisabledByDefault /t REG_DWORD /d 0 /f"]
-RUN ["cmd", "/S", "/C", "reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.0\\Server\" /f && reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.0\\Server\" /v Enabled /t REG_DWORD /d 1 /f && reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.0\\Server\" /v DisabledByDefault /t REG_DWORD /d 0 /f"]
-RUN ["cmd", "/S", "/C", "reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.1\\Client\" /f && reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.1\\Client\" /v Enabled /t REG_DWORD /d 1 /f && reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.1\\Client\" /v DisabledByDefault /t REG_DWORD /d 0 /f"]
-RUN ["cmd", "/S", "/C", "reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.1\\Server\" /f && reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.1\\Server\" /v Enabled /t REG_DWORD /d 1 /f && reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.1\\Server\" /v DisabledByDefault /t REG_DWORD /d 0 /f"]
-RUN ["cmd", "/S", "/C", "reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.2\\Client\" /f && reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.2\\Client\" /v Enabled /t REG_DWORD /d 1 /f && reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.2\\Client\" /v DisabledByDefault /t REG_DWORD /d 0 /f"]
-RUN ["cmd", "/S", "/C", "reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.2\\Server\" /f && reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.2\\Server\" /v Enabled /t REG_DWORD /d 1 /f && reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.2\\Server\" /v DisabledByDefault /t REG_DWORD /d 0 /f"]
-RUN ["cmd", "/S", "/C", "reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.3\\Client\" /f && reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.3\\Client\" /v Enabled /t REG_DWORD /d 1 /f && reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.3\\Client\" /v DisabledByDefault /t REG_DWORD /d 0 /f"]
-RUN ["cmd", "/S", "/C", "reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.3\\Server\" /f && reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.3\\Server\" /v Enabled /t REG_DWORD /d 1 /f && reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.3\\Server\" /v DisabledByDefault /t REG_DWORD /d 0 /f"]
-RUN ["cmd", "/S", "/C", "reg add \"HKLM\\SOFTWARE\\Microsoft\\.NETFramework\\v4.0.30319\" /f && reg add \"HKLM\\SOFTWARE\\Microsoft\\.NETFramework\\v4.0.30319\" /v SchUseStrongCrypto /t REG_DWORD /d 1 /f && reg add \"HKLM\\SOFTWARE\\Microsoft\\.NETFramework\\v4.0.30319\" /v SystemDefaultTlsVersions /t REG_DWORD /d 1 /f"]
-RUN ["cmd", "/S", "/C", "reg add \"HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\.NETFramework\\v4.0.30319\" /f && reg add \"HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\.NETFramework\\v4.0.30319\" /v SchUseStrongCrypto /t REG_DWORD /d 1 /f && reg add \"HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\.NETFramework\\v4.0.30319\" /v SystemDefaultTlsVersions /t REG_DWORD /d 1 /f"]
+RUN \
+  $ErrorActionPreference = 'Stop'; \
+  $protocols = 'TLS 1.0','TLS 1.1','TLS 1.2','TLS 1.3'; \
+  foreach ($proto in $protocols) { \
+    foreach ($role in 'Client','Server') { \
+      $key = "HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\$proto\\$role"; \
+      & reg.exe add $key /f | Out-Null; \
+      & reg.exe add $key /v Enabled /t REG_DWORD /d 1 /f | Out-Null; \
+      & reg.exe add $key /v DisabledByDefault /t REG_DWORD /d 0 /f | Out-Null; \
+    } \
+  }; \
+  & reg.exe add 'HKLM\\SOFTWARE\\Microsoft\\.NETFramework\\v4.0.30319' /f | Out-Null; \
+  & reg.exe add 'HKLM\\SOFTWARE\\Microsoft\\.NETFramework\\v4.0.30319' /v SchUseStrongCrypto /t REG_DWORD /d 1 /f | Out-Null; \
+  & reg.exe add 'HKLM\\SOFTWARE\\Microsoft\\.NETFramework\\v4.0.30319' /v SystemDefaultTlsVersions /t REG_DWORD /d 1 /f | Out-Null; \
+  & reg.exe add 'HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\.NETFramework\\v4.0.30319' /f | Out-Null; \
+  & reg.exe add 'HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\.NETFramework\\v4.0.30319' /v SchUseStrongCrypto /t REG_DWORD /d 1 /f | Out-Null; \
+  & reg.exe add 'HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\.NETFramework\\v4.0.30319' /v SystemDefaultTlsVersions /t REG_DWORD /d 1 /f | Out-Null
 
 # Common helper: retry wrapper available in subsequent RUN steps via a temporary script
 RUN \
@@ -60,7 +67,7 @@ RUN \
 
 # Persist PATH updates for NuGet, .NET, and Git
 ENV DOTNET_ROOT="C:\\tools\\dotnet"
-ENV PATH="C:\\tools\\nuget;C:\\tools\\dotnet;C:\\Program Files\\Git\\cmd;C:\\Program Files\\PowerShell\\7;${PATH}"
+ENV PATH="C:\\\\tools\\nuget;C:\\\\tools\\dotnet;C:\\\\Program Files\\Git\\cmd;C:\\\\Program Files\\PowerShell\\7;${PATH}"
 
 # Trust PSGallery, ensure NuGet provider and PowerShellGet are present and current
 RUN \
