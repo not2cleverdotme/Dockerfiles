@@ -44,7 +44,7 @@ Notes:
 From a PowerShell prompt on the Windows host:
 
 ```powershell
-docker build -t win-pwsh-az-dotnet-git:ltsc2022 C:\Users\admin\Documents\Misc
+docker build -t win-pwsh-az-dotnet-git:ltsc2022 C:\Users\admin\Documents\Dockerfiles
 ```
 
 ---
