@@ -13,7 +13,10 @@ ARG INSTALL_AZUREAD=false
 RUN powershell -NoLogo -NoProfile -Command "$ErrorActionPreference='Stop'; $protocols=@('TLS 1.0','TLS 1.1','TLS 1.2','TLS 1.3'); foreach ($proto in $protocols) { foreach ($role in @('Client','Server')) { $base = 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\{0}\{1}' -f $proto,$role; if (-not (Test-Path $base)) { New-Item -Path $base -Force | Out-Null }; New-ItemProperty -Path $base -Name Enabled -PropertyType DWord -Value 1 -Force | Out-Null; New-ItemProperty -Path $base -Name DisabledByDefault -PropertyType DWord -Value 0 -Force | Out-Null } }; foreach ($rk in @('HKLM:\SOFTWARE\Microsoft\.NETFramework\v4.0.30319','HKLM:\SOFTWARE\WOW6432Node\Microsoft\.NETFramework\v4.0.30319')) { if (-not (Test-Path $rk)) { New-Item -Path $rk -Force | Out-Null }; New-ItemProperty -Path $rk -Name SchUseStrongCrypto -PropertyType DWord -Value 1 -Force | Out-Null; New-ItemProperty -Path $rk -Name SystemDefaultTlsVersions -PropertyType DWord -Value 1 -Force | Out-Null }"
 
 # Switch to PowerShell 7 as the default shell for subsequent steps
-SHELL ["C:\\Program Files\\PowerShell\\7\\pwsh.exe", "-NoLogo", "-NoProfile", "-Command"]
+SHELL ["pwsh", "-NoLogo", "-NoProfile", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
+
+# Verify PowerShell shell is working
+RUN Write-Host "PowerShell 7 shell configured successfully"
 
 # Install NuGet CLI and expose on PATH
 RUN \
@@ -87,4 +90,4 @@ RUN \
 WORKDIR /work
 
 # Default command
-ENTRYPOINT ["C:\\Program Files\\PowerShell\\7\\pwsh.exe", "-NoLogo"]
+ENTRYPOINT ["pwsh", "-NoLogo"]
