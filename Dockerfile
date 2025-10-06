@@ -1,5 +1,5 @@
 # Windows Server 2022 (LTSC) base with PowerShell 7
-FROM mcr.microsoft.com/powershell:ltsc2022
+FROM mcr.microsoft.com/powershell:7.4-windowsservercore-ltsc2022
 
 # Use PowerShell 7 as the default shell
 SHELL ["pwsh", "-NoLogo", "-NoProfile", "-Command"]

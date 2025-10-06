@@ -15,8 +15,12 @@ This image is intended for Windows hosts using Windows containers (Hyper‑V or 
 
 ## Prerequisites (Windows host)
 
-- Windows Server 2022 (recommended) or Windows 10/11 with matching Windows container support
-- Roles/features and Docker Engine for Windows Server:
+- Windows Server 2022 (recommended) or Windows 11 with Windows containers
+- Choose your host setup:
+  - Windows Server: enable Hyper‑V + Containers roles and install Docker Engine (see below)
+  - Windows 11: install Docker Desktop, and switch to Windows containers
+
+### Windows Server setup
 
 ```powershell
 Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V -All
@@ -28,14 +32,19 @@ Install-Package -Force -Name docker -ProviderName DockerMsftProvider
 Restart-Computer
 ```
 
-- Confirm base image availability and OS match:
+### Windows 11 setup (Docker Desktop)
+
+1) Install Docker Desktop for Windows
+2) Right-click Docker tray icon → "Switch to Windows containers..."
+3) Settings → General: ensure "Use the WSL 2 based engine" is enabled (optional)
+4) Pull a compatible base image (explicit tag):
 
 ```powershell
-docker pull mcr.microsoft.com/powershell:ltsc2022
+docker pull mcr.microsoft.com/powershell:7.4-windowsservercore-ltsc2022
 ```
 
 Notes:
-- Windows container images must match the host OS build. Prefer `--isolation=hyperv` for compatibility across patch levels.
+- Windows container images must match the host OS patch family. Prefer `--isolation=hyperv` for cross‑patch compatibility on client hosts.
 
 ---
 
@@ -67,7 +76,7 @@ docker run -it --isolation=hyperv -v C:\work:C:\work -w C:\work --entrypoint pws
 
 ## What’s included
 
-- Windows Server 2022 base (PowerShell 7 image: `mcr.microsoft.com/powershell:ltsc2022`)
+- Windows Server 2022 base (PowerShell 7 image: `mcr.microsoft.com/powershell:7.4-windowsservercore-ltsc2022`)
 - TLS 1.0/1.1/1.2/1.3 enabled for Client/Server in Schannel
 - .NET registry defaults: `SchUseStrongCrypto=1`, `SystemDefaultTlsVersions=1`
 - NuGet CLI installed to `C:\tools\nuget` and on PATH
@@ -139,10 +148,18 @@ If you want to restrict to TLS 1.2/1.3, remove TLS 1.0/1.1 enablement in the Doc
 
 ## Troubleshooting
 
-- OS version mismatch: If `docker run` fails with an OS version error, use `--isolation=hyperv` or rebuild on a host with a matching build.
-- PowerShell module restore: If PSGallery is temporarily unavailable, re-run `Install-Module` commands inside the container.
-- NuGet private feeds: Add sources and credentials via `nuget sources Add ...` or use `dotnet nuget add source` if using `dotnet` restore.
-- Git SSL issues: Import enterprise CA certs into the container and/or configure `git config --system http.sslbackend schannel` (default on Git for Windows) so Windows cert store is used.
+- "ltsc2022 not found" on Windows 11:
+  - Ensure Docker Desktop is set to Windows containers (not Linux containers/WSL only)
+  - Pull an explicit Windows Server Core tag: `mcr.microsoft.com/powershell:7.4-windowsservercore-ltsc2022`
+  - Corporate proxy may block MCR; configure proxy or pull from a mirror
+- OS version mismatch errors:
+  - Use `--isolation=hyperv`, or update host to a compatible patch level
+- Windows on ARM devices:
+  - Many Windows container images (including ServerCore LTSC) are only available for amd64; Windows containers on ARM are limited
+- PowerShell module restore:
+  - If PSGallery is unavailable at build time, rerun `Install-Module` commands inside the container
+- Git TLS trust:
+  - Import enterprise CA certs and ensure Git uses the Windows cert store (`schannel` is default on Git for Windows)
 
 ---
 
