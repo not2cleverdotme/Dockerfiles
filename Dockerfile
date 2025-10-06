@@ -15,23 +15,15 @@ RUN powershell -NoLogo -NoProfile -Command "$ErrorActionPreference='Stop'; $prot
 # Switch to PowerShell 7 as the default shell for subsequent steps
 SHELL ["pwsh", "-NoLogo", "-NoProfile", "-Command"]
 
-# Common helper: retry wrapper available in subsequent RUN steps via a temporary script
-RUN \
-  $ErrorActionPreference = 'Stop'; \
-  $helper = 'param(); function Invoke-WithRetry { param([ScriptBlock]$Script,[int]$Retries=3,[int]$DelaySeconds=8); for ($i=1; $i -le $Retries; $i++) { try { & $Script; return } catch { if ($i -ge $Retries) { throw }; Start-Sleep -Seconds $DelaySeconds } } }'; \
-  $path = 'C:\\Windows\\Temp\\retry.ps1'; \
-  Set-Content -Path $path -Value $helper -Encoding UTF8
-
 # Install NuGet CLI and expose on PATH
 RUN \
   $ErrorActionPreference = 'Stop'; \
-  . 'C:\\Windows\\Temp\\retry.ps1'; \
   $nugetDir = 'C:\\tools\\nuget'; New-Item -ItemType Directory -Path $nugetDir -Force | Out-Null; \
   $url = 'https://dist.nuget.org/win-x86-commandline/latest/nuget.exe'; \
   $out = Join-Path $nugetDir 'nuget.exe'; \
   $downloaded = $false; \
   try { \
-    Invoke-WithRetry { Invoke-WebRequest -UseBasicParsing $url -OutFile $out -ErrorAction Stop } -Retries 5 -DelaySeconds 10; \
+    Invoke-WebRequest -UseBasicParsing $url -OutFile $out -ErrorAction Stop; \
     $downloaded = $true; \
   } catch { \
     Write-Warning 'NuGet download failed due to TLS/certificate. Falling back to -SkipCertificateCheck with signature validation.'; \
@@ -68,21 +60,20 @@ ENV PATH="C:\\tools\\nuget;C:\\tools\\dotnet;C:\\Program Files\\PowerShell\\7;${
 # Trust PSGallery, ensure NuGet provider and PowerShellGet are present and current
 RUN \
   $ErrorActionPreference = 'Stop'; \
-  . 'C:\\Windows\\Temp\\retry.ps1'; \
-  if ((Get-PSRepository -Name 'PSGallery').InstallationPolicy -ne 'Trusted') { Set-PSRepository -Name 'PSGallery' -InstallationPolicy Trusted }; \
-  Invoke-WithRetry { Install-PackageProvider -Name NuGet -Force -Scope AllUsers -ErrorAction Stop } -Retries 3 -DelaySeconds 5; \
-  Invoke-WithRetry { Install-Module -Name PowerShellGet -Force -Scope AllUsers -AllowClobber -AcceptLicense -ErrorAction Stop } -Retries 3 -DelaySeconds 5; \
+  try { Set-PSRepository -Name 'PSGallery' -InstallationPolicy Trusted -ErrorAction Stop } catch { }; \
+  Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Scope AllUsers; \
+  Install-Module -Name PowerShellGet -Force -Scope AllUsers -AllowClobber -AcceptLicense; \
   Import-Module PowerShellGet -ErrorAction Stop
 
 # Install commonly used modules (conditionally), including Az
 RUN \
   $ErrorActionPreference = 'Stop'; \
-  . 'C:\\Windows\\Temp\\retry.ps1'; \
-  if ($env:INSTALL_AZ -eq 'true') { Invoke-WithRetry { Install-Module -Name Az -Repository PSGallery -Force -AllowClobber -Scope AllUsers -AcceptLicense -ErrorAction Stop } -Retries 3 -DelaySeconds 10 }; \
-  if ($env:INSTALL_PESTER -eq 'true') { Invoke-WithRetry { Install-Module -Name Pester -Force -Scope AllUsers -AcceptLicense -ErrorAction Stop } -Retries 3 -DelaySeconds 10 }; \
-  if ($env:INSTALL_SQLSERVER -eq 'true') { Invoke-WithRetry { Install-Module -Name SqlServer -Force -Scope AllUsers -AcceptLicense -ErrorAction Stop } -Retries 3 -DelaySeconds 10 }; \
-  if ($env:INSTALL_PSREADLINE -eq 'true') { Invoke-WithRetry { Install-Module -Name PSReadLine -Force -Scope AllUsers -AcceptLicense -ErrorAction Stop } -Retries 3 -DelaySeconds 10 }; \
-  if ($env:INSTALL_AZUREAD -eq 'true') { Invoke-WithRetry { Install-Module -Name AzureAD -Force -Scope AllUsers -AllowClobber -AcceptLicense -ErrorAction Stop } -Retries 3 -DelaySeconds 10 }; \
+  function InstallWithRetry { param([string]$Name,[hashtable]$Params); for($i=0;$i -lt 3;$i++){ try { Install-Module -Name $Name @Params; return } catch { Start-Sleep -Seconds 8 } }; throw "Failed to install $Name" }; \
+  if ($env:INSTALL_AZ -eq 'true') { InstallWithRetry 'Az' @{ Repository='PSGallery'; Force=$true; AllowClobber=$true; Scope='AllUsers'; AcceptLicense=$true } }; \
+  if ($env:INSTALL_PESTER -eq 'true') { InstallWithRetry 'Pester' @{ Force=$true; Scope='AllUsers'; AcceptLicense=$true } }; \
+  if ($env:INSTALL_SQLSERVER -eq 'true') { InstallWithRetry 'SqlServer' @{ Force=$true; Scope='AllUsers'; AcceptLicense=$true } }; \
+  if ($env:INSTALL_PSREADLINE -eq 'true') { InstallWithRetry 'PSReadLine' @{ Force=$true; Scope='AllUsers'; AcceptLicense=$true } }; \
+  if ($env:INSTALL_AZUREAD -eq 'true') { InstallWithRetry 'AzureAD' @{ Force=$true; Scope='AllUsers'; AllowClobber=$true; AcceptLicense=$true } }; \
   if ($env:INSTALL_AZ -eq 'true') { Import-Module Az.Accounts -ErrorAction Stop; (Get-Module -ListAvailable Az | Select-Object -First 1).Version | Out-String | Write-Host }
 
 # Set an all-users, all-hosts PowerShell profile to prefer system-default TLS
