@@ -15,8 +15,20 @@ ARG INSTALL_AZUREAD=false
 # and set .NET strong crypto and system-default TLS versions
 RUN \
   $ErrorActionPreference = 'Stop'; \
-  foreach ($proto in 'TLS 1.0','TLS 1.1','TLS 1.2','TLS 1.3') { foreach ($role in 'Client','Server') { $base = "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\$proto\\$role"; if (-not (Test-Path $base)) { New-Item -Path $base -Force | Out-Null }; New-ItemProperty -Path $base -Name 'Enabled' -PropertyType DWord -Value 1 -Force | Out-Null; New-ItemProperty -Path $base -Name 'DisabledByDefault' -PropertyType DWord -Value 0 -Force | Out-Null; } }; \
-  foreach ($rk in 'HKLM:\\SOFTWARE\\Microsoft\\.NETFramework\\v4.0.30319','HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\.NETFramework\\v4.0.30319') { if (-not (Test-Path $rk)) { New-Item -Path $rk -Force | Out-Null }; New-ItemProperty -Path $rk -Name 'SchUseStrongCrypto' -PropertyType DWord -Value 1 -Force | Out-Null; New-ItemProperty -Path $rk -Name 'SystemDefaultTlsVersions' -PropertyType DWord -Value 1 -Force | Out-Null; }
+  $protocols = 'TLS 1.0','TLS 1.1','TLS 1.2','TLS 1.3'; \
+  foreach ($proto in $protocols) { \
+    foreach ($role in 'Client','Server') { \
+      $key = "HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\$proto\\$role"; \
+      cmd /c "reg add `"$key`" /f >NUL"; \
+      cmd /c "reg add `"$key`" /v Enabled /t REG_DWORD /d 1 /f >NUL"; \
+      cmd /c "reg add `"$key`" /v DisabledByDefault /t REG_DWORD /d 0 /f >NUL"; \
+    } \
+  }; \
+  foreach ($rk in 'HKLM\\SOFTWARE\\Microsoft\\.NETFramework\\v4.0.30319','HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\.NETFramework\\v4.0.30319') { \
+    cmd /c "reg add `"$rk`" /f >NUL"; \
+    cmd /c "reg add `"$rk`" /v SchUseStrongCrypto /t REG_DWORD /d 1 /f >NUL"; \
+    cmd /c "reg add `"$rk`" /v SystemDefaultTlsVersions /t REG_DWORD /d 1 /f >NUL"; \
+  }
 
 # Common helper: retry wrapper available in subsequent RUN steps via a temporary script
 RUN \
