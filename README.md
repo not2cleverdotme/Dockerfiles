@@ -22,7 +22,7 @@ The default command prints NuGet help, confirming installation and PATH configur
 ### What this image does
 - Enables TLS 1.0, 1.1, 1.2, and 1.3 for both Client and Server via Schannel registry keys.
 - Downloads `nuget.exe` to `C:\tools\nuget` and adds it to `PATH`.
-- Installs the PowerShell `Az` module from the PowerShell Gallery (PSGallery) for all users.
+- Installs the PowerShell `Az` module from the PowerShell Gallery (PSGallery) for all users. The module is not preloaded during build to keep build times short.
 - Installs Azure CLI (`az`) via MSI and adds its bin directory to `PATH`.
 - Ensures `powershell.exe` is globally available by appending `C:\Windows\System32\WindowsPowerShell\v1.0` to `PATH`.
 - Ensures common module locations are present in `PSModulePath` for `Az` discovery.
@@ -39,7 +39,7 @@ nuget help
 Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.2\Client' |
   Select-Object Enabled, DisabledByDefault
 
-# Verify Az module availability
+# Import Az (installed but not preloaded during build) and verify
 Import-Module Az
 Get-Module Az | Select-Object Name, Version | Format-Table -AutoSize
 
@@ -51,7 +51,7 @@ Expected TLS values: `Enabled = 1`, `DisabledByDefault = 0`.
 ### Notes
 - Some Windows builds may not fully support TLS 1.3 via Schannel; keys are created for consistency, but behavior can depend on the base OS image.
 - If corporate proxies/SSL inspection are present, `Invoke-WebRequest` may need additional parameters or proxy env vars during build.
-- The `Az` module install is non-interactive; PSGallery is trusted and the NuGet provider is ensured.
+- The `Az` module install is non-interactive; PSGallery is trusted and the NuGet provider is ensured. Import at runtime with `Import-Module Az`.
 
 ### Troubleshooting
 - Ensure Docker is in Windows containers mode.
