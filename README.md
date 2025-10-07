@@ -1,6 +1,6 @@
-## Windows Server Core Docker Image with TLS Enabled and NuGet
+## Windows Server Core Docker Image with TLS Enabled, NuGet, and Az Module
 
-This image is based on `mcr.microsoft.com/windows/servercore:ltsc2022` and is intended to run on Windows 11 with Windows containers. It enables all TLS protocol versions in Schannel (Client and Server) and installs `nuget.exe` to `C:\tools\nuget`.
+This image is based on `mcr.microsoft.com/windows/servercore:ltsc2022` and is intended to run on Windows 11 with Windows containers. It enables all TLS protocol versions in Schannel (Client and Server), installs `nuget.exe` to `C:\tools\nuget`, and installs the PowerShell `Az` module for Azure automation.
 
 ### Prerequisites
 - Windows 11 with Docker Desktop
@@ -22,6 +22,8 @@ The default command prints NuGet help, confirming installation and PATH configur
 ### What this image does
 - Enables TLS 1.0, 1.1, 1.2, and 1.3 for both Client and Server via Schannel registry keys.
 - Downloads `nuget.exe` to `C:\tools\nuget` and adds it to `PATH`.
+- Installs the PowerShell `Az` module from the PowerShell Gallery (PSGallery) for all users.
+- Ensures `powershell.exe` is globally available by appending `C:\Windows\System32\WindowsPowerShell\v1.0` to `PATH`.
 
 ### Validate inside the container
 ```powershell
@@ -34,15 +36,19 @@ nuget help
 # Verify TLS registry keys (example for TLS 1.2 Client)
 Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.2\Client' |
   Select-Object Enabled, DisabledByDefault
+
+# Verify Az module is installed
+Get-Module -ListAvailable Az | Select-Object Name, Version | Format-Table -AutoSize
 ```
-Expected values: `Enabled = 1`, `DisabledByDefault = 0`.
+Expected TLS values: `Enabled = 1`, `DisabledByDefault = 0`.
 
 ### Notes
 - Some Windows builds may not fully support TLS 1.3 via Schannel; keys are created for consistency, but behavior can depend on the base OS image.
 - If corporate proxies/SSL inspection are present, `Invoke-WebRequest` may need additional parameters or proxy env vars during build.
+- The `Az` module install is non-interactive; PSGallery is trusted and the NuGet provider is ensured.
 
 ### Troubleshooting
 - Ensure Docker is in Windows containers mode.
 - Image OS must be compatible with the host (e.g., `ltsc2022`).
-- If `nuget` is not found, confirm `ENV PATH` is in effect or re-run a new container session.
+- If `nuget` or `powershell` are not found, confirm `ENV PATH` is in effect or re-run a new container session.
 - If TLS keys appear missing, rebuild with `--no-cache` to force the registry step to execute.
