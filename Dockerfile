@@ -7,11 +7,13 @@ SHELL ["powershell", "-NoLogo", "-NoProfile", "-Command", "$ErrorActionPreferenc
 # Enable TLS 1.0, 1.1, 1.2, 1.3 for both Client and Server in Schannel via cmd REG ADD
 RUN ["cmd", "/S", "/C", "reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.0\\Client\" /v Enabled /t REG_DWORD /d 1 /f && reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.0\\Client\" /v DisabledByDefault /t REG_DWORD /d 0 /f && reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.0\\Server\" /v Enabled /t REG_DWORD /d 1 /f && reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.0\\Server\" /v DisabledByDefault /t REG_DWORD /d 0 /f && reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.1\\Client\" /v Enabled /t REG_DWORD /d 1 /f && reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.1\\Client\" /v DisabledByDefault /t REG_DWORD /d 0 /f && reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.1\\Server\" /v Enabled /t REG_DWORD /d 1 /f && reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.1\\Server\" /v DisabledByDefault /t REG_DWORD /d 0 /f && reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.2\\Client\" /v Enabled /t REG_DWORD /d 1 /f && reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.2\\Client\" /v DisabledByDefault /t REG_DWORD /d 0 /f && reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.2\\Server\" /v Enabled /t REG_DWORD /d 1 /f && reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.2\\Server\" /v DisabledByDefault /t REG_DWORD /d 0 /f && reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.3\\Client\" /v Enabled /t REG_DWORD /d 1 /f && reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.3\\Client\" /v DisabledByDefault /t REG_DWORD /d 0 /f && reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.3\\Server\" /v Enabled /t REG_DWORD /d 1 /f && reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.3\\Server\" /v DisabledByDefault /t REG_DWORD /d 0 /f"]
 
-# Install NuGet (nuget.exe) and add to PATH
+# Install NuGet (nuget.exe)
 RUN [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; `
     New-Item -ItemType Directory -Path 'C:\\tools\\nuget' -Force | Out-Null; `
-    Invoke-WebRequest -UseBasicParsing -Uri 'https://dist.nuget.org/win-x86-commandline/latest/nuget.exe' -OutFile 'C:\\tools\\nuget\\nuget.exe'; `
-    setx /M PATH \"$($env:PATH);C:\\tools\\nuget\" | Out-Null
+    Invoke-WebRequest -UseBasicParsing -Uri 'https://dist.nuget.org/win-x86-commandline/latest/nuget.exe' -OutFile 'C:\\tools\\nuget\\nuget.exe'
+
+# Ensure nuget is on PATH for build and runtime
+ENV PATH=C:\\tools\\nuget;%PATH%
 
 # Default command: print NuGet help to verify install
 CMD ["C:/tools/nuget/nuget.exe", "help"]
