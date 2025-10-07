@@ -22,8 +22,14 @@ RUN [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tl
     New-Item -ItemType Directory -Path 'C:\\tools\\nuget' -Force | Out-Null; `
     Invoke-WebRequest -UseBasicParsing -Uri 'https://dist.nuget.org/win-x86-commandline/latest/nuget.exe' -OutFile 'C:\\tools\\nuget\\nuget.exe'
 
-# Ensure nuget is on PATH for build and runtime
-ENV PATH=C:\\tools\\nuget;%PATH%
+# Install PowerShell Az module (trust PSGallery, ensure NuGet provider)
+RUN [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; `
+    if (-not (Get-PackageProvider -Name NuGet -ListAvailable -ErrorAction SilentlyContinue)) { Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force | Out-Null }; `
+    if ((Get-PSRepository -Name PSGallery -ErrorAction SilentlyContinue).InstallationPolicy -ne 'Trusted') { Set-PSRepository -Name PSGallery -InstallationPolicy Trusted }; `
+    Install-Module -Name Az -Repository PSGallery -Scope AllUsers -Force -AllowClobber -AcceptLicense
+
+# Ensure PowerShell and nuget are on PATH for build and runtime
+ENV PATH=C:\\Windows\\System32\\WindowsPowerShell\\v1.0;C:\\tools\\nuget;%PATH%
 
 # Default command: print NuGet help to verify install
 CMD ["C:/tools/nuget/nuget.exe", "help"]
