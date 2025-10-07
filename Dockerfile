@@ -26,7 +26,7 @@ RUN [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tl
 RUN [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; `
     if (-not (Get-PackageProvider -Name NuGet -ListAvailable -ErrorAction SilentlyContinue)) { Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force | Out-Null }; `
     if ((Get-PSRepository -Name PSGallery -ErrorAction SilentlyContinue).InstallationPolicy -ne 'Trusted') { Set-PSRepository -Name PSGallery -InstallationPolicy Trusted }; `
-    Install-Module -Name Az -Repository PSGallery -Scope AllUsers -Force -AllowClobber -AcceptLicense
+    Install-Module -Name Az -Repository PSGallery -Scope AllUsers -Force -AllowClobber -Confirm:$false
 
 # Ensure PowerShell and nuget are on PATH for build and runtime
 ENV PATH=C:\\Windows\\System32\\WindowsPowerShell\\v1.0;C:\\tools\\nuget;%PATH%
