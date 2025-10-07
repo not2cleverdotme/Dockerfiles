@@ -37,10 +37,10 @@ RUN [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tl
     Remove-Item $msi -Force
 
 # Ensure PowerShell, nuget, and az are on PATH for build and runtime
-ENV PATH=C:\\Windows\\System32\\WindowsPowerShell\\v1.0;C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\wbin;C:\\Program Files (x86)\\Microsoft SDKs\\Azure\\CLI2\\wbin;C:\\tools\\nuget;%PATH%
+ENV PATH "C:\\Windows\\System32\\WindowsPowerShell\\v1.0;C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\wbin;C:\\Program Files (x86)\\Microsoft SDKs\\Azure\\CLI2\\wbin;C:\\tools\\nuget;%PATH%"
 
 # Ensure Az module location is on PSModulePath
-ENV PSModulePath=C:\\Program Files\\WindowsPowerShell\\Modules;C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\Modules;%PSModulePath%
+ENV PSModulePath "C:\\Program Files\\WindowsPowerShell\\Modules;C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\Modules;%PSModulePath%"
 
 # Default command: print NuGet help to verify install
 CMD ["C:/tools/nuget/nuget.exe", "help"]
