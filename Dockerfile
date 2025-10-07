@@ -28,6 +28,10 @@ RUN [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tl
     if ((Get-PSRepository -Name PSGallery -ErrorAction SilentlyContinue).InstallationPolicy -ne 'Trusted') { Set-PSRepository -Name PSGallery -InstallationPolicy Trusted }; `
     Install-Module -Name Az -Repository PSGallery -Scope AllUsers -Force -AllowClobber -Confirm:$false
 
+# Preload Az module into the module cache
+RUN Import-Module Az; `
+    Get-Module Az | Out-Null
+
 # Install Azure CLI (az)
 RUN [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; `
     New-Item -ItemType Directory -Path 'C:\\temp' -Force | Out-Null; `
