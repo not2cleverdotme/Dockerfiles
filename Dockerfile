@@ -28,8 +28,19 @@ RUN [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tl
     if ((Get-PSRepository -Name PSGallery -ErrorAction SilentlyContinue).InstallationPolicy -ne 'Trusted') { Set-PSRepository -Name PSGallery -InstallationPolicy Trusted }; `
     Install-Module -Name Az -Repository PSGallery -Scope AllUsers -Force -AllowClobber -Confirm:$false
 
-# Ensure PowerShell and nuget are on PATH for build and runtime
-ENV PATH=C:\\Windows\\System32\\WindowsPowerShell\\v1.0;C:\\tools\\nuget;%PATH%
+# Install Azure CLI (az)
+RUN [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; `
+    New-Item -ItemType Directory -Path 'C:\\temp' -Force | Out-Null; `
+    $msi = 'C:\\temp\\azure-cli.msi'; `
+    Invoke-WebRequest -UseBasicParsing -Uri 'https://aka.ms/installazurecliwindows' -OutFile $msi; `
+    Start-Process msiexec.exe -ArgumentList '/i', $msi, '/qn', '/norestart' -Wait; `
+    Remove-Item $msi -Force
+
+# Ensure PowerShell, nuget, and az are on PATH for build and runtime
+ENV PATH=C:\\Windows\\System32\\WindowsPowerShell\\v1.0;C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\wbin;C:\\Program Files (x86)\\Microsoft SDKs\\Azure\\CLI2\\wbin;C:\\tools\\nuget;%PATH%
+
+# Ensure Az module location is on PSModulePath
+ENV PSModulePath=C:\\Program Files\\WindowsPowerShell\\Modules;C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\Modules;%PSModulePath%
 
 # Default command: print NuGet help to verify install
 CMD ["C:/tools/nuget/nuget.exe", "help"]
