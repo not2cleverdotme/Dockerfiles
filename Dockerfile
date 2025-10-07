@@ -41,7 +41,7 @@ RUN C:\\Progra~1\\PowerShell\\7\\pwsh.exe -Command \
   }
 
 # Install .NET SDK (LTS) using official dotnet-install script (conditionally)
-RUN C\\Progra~1\\PowerShell\\7\\pwsh.exe -Command \
+RUN C:\\Progra~1\\PowerShell\\7\\pwsh.exe -Command \
   "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue'; \
   if ($env:INSTALL_DOTNET -eq 'true') { \
     $dotnetDir = 'C:\\tools\\dotnet'; New-Item -ItemType Directory -Path $dotnetDir -Force | Out-Null; \
