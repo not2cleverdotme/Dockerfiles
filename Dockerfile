@@ -73,7 +73,7 @@ ENV DOTNET_SKIP_FIRST_TIME_EXPERIENCE="1"
 ENV DOTNET_NOLOGO="1"
 
 # Trust PSGallery, ensure NuGet provider and PowerShellGet are present and current
-RUN pwsh -Command \
+RUN powershell -NoLogo -NoProfile -Command \
   "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue'; \
   try { Set-PSRepository -Name 'PSGallery' -InstallationPolicy Trusted -ErrorAction Stop } catch { }; \
   Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Scope AllUsers; \
@@ -81,7 +81,7 @@ RUN pwsh -Command \
   Import-Module PowerShellGet -ErrorAction Stop
 
 # Install commonly used modules (conditionally), including Az
-RUN pwsh -Command \
+RUN powershell -NoLogo -NoProfile -Command \
   "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue'; \
   function InstallWithRetry { param([string]$Name,[hashtable]$Params); for($i=0;$i -lt 3;$i++){ try { Install-Module -Name $Name @Params; return } catch { Start-Sleep -Seconds 8 } }; throw "Failed to install $Name" }; \
   if ($env:INSTALL_AZ -eq 'true') { InstallWithRetry 'Az' @{ Repository='PSGallery'; Force=$true; AllowClobber=$true; Scope='AllUsers'; AcceptLicense=$true } }; \
@@ -93,7 +93,7 @@ RUN pwsh -Command \
   Get-ChildItem -Path "$env:ProgramData\\Microsoft\\Windows\\PowerShell\\PowerShellGet" -Recurse -ErrorAction SilentlyContinue | Remove-Item -Force -Recurse -ErrorAction SilentlyContinue
 
 # Set an all-users, all-hosts PowerShell profile to prefer system-default TLS
-RUN pwsh -Command \
+RUN powershell -NoLogo -NoProfile -Command \
   "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue'; \
   $content = 'try { [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::SystemDefault -bor 3072 -bor 768 -bor 192 } catch { }'; \
   $profiles = 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\profile.ps1','C:\\Program Files\\PowerShell\\7\\profile.ps1'; \
