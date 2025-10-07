@@ -12,11 +12,9 @@ ARG INSTALL_SQLSERVER=true
 # and set .NET strong crypto and system-default TLS versions
 RUN powershell -NoLogo -NoProfile -Command "$ErrorActionPreference='Stop'; $protocols=@('TLS 1.0','TLS 1.1','TLS 1.2','TLS 1.3'); foreach ($proto in $protocols) { foreach ($role in @('Client','Server')) { $base = 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\{0}\{1}' -f $proto,$role; if (-not (Test-Path $base)) { New-Item -Path $base -Force | Out-Null }; New-ItemProperty -Path $base -Name Enabled -PropertyType DWord -Value 1 -Force | Out-Null; New-ItemProperty -Path $base -Name DisabledByDefault -PropertyType DWord -Value 0 -Force | Out-Null } }; foreach ($rk in @('HKLM:\SOFTWARE\Microsoft\.NETFramework\v4.0.30319','HKLM:\SOFTWARE\WOW6432Node\Microsoft\.NETFramework\v4.0.30319')) { if (-not (Test-Path $rk)) { New-Item -Path $rk -Force | Out-Null }; New-ItemProperty -Path $rk -Name SchUseStrongCrypto -PropertyType DWord -Value 1 -Force | Out-Null; New-ItemProperty -Path $rk -Name SystemDefaultTlsVersions -PropertyType DWord -Value 1 -Force | Out-Null }"
 
-# Set PowerShell as the default SHELL for subsequent RUN commands
-SHELL ["pwsh", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
-
 # Install NuGet CLI and expose on PATH (conditionally)
-RUN \
+RUN pwsh -Command \
+  "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue'; \
   if ($env:INSTALL_NUGET -eq 'true') { \
     $nugetDir = 'C:\\tools\\nuget'; New-Item -ItemType Directory -Path $nugetDir -Force | Out-Null; \
     $url = 'https://dist.nuget.org/win-x86-commandline/latest/nuget.exe'; \
@@ -43,7 +41,8 @@ RUN \
   }
 
 # Install .NET SDK (LTS) using official dotnet-install script (conditionally)
-RUN \
+RUN pwsh -Command \
+  "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue'; \
   if ($env:INSTALL_DOTNET -eq 'true') { \
     $dotnetDir = 'C:\\tools\\dotnet'; New-Item -ItemType Directory -Path $dotnetDir -Force | Out-Null; \
     $script = 'C:\\Windows\\Temp\\dotnet-install.ps1'; \
@@ -74,14 +73,16 @@ ENV DOTNET_SKIP_FIRST_TIME_EXPERIENCE="1"
 ENV DOTNET_NOLOGO="1"
 
 # Trust PSGallery, ensure NuGet provider and PowerShellGet are present and current
-RUN \
+RUN pwsh -Command \
+  "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue'; \
   try { Set-PSRepository -Name 'PSGallery' -InstallationPolicy Trusted -ErrorAction Stop } catch { }; \
   Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Scope AllUsers; \
   Install-Module -Name PowerShellGet -Force -Scope AllUsers -AllowClobber -AcceptLicense; \
   Import-Module PowerShellGet -ErrorAction Stop
 
 # Install commonly used modules (conditionally), including Az
-RUN \
+RUN pwsh -Command \
+  "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue'; \
   function InstallWithRetry { param([string]$Name,[hashtable]$Params); for($i=0;$i -lt 3;$i++){ try { Install-Module -Name $Name @Params; return } catch { Start-Sleep -Seconds 8 } }; throw "Failed to install $Name" }; \
   if ($env:INSTALL_AZ -eq 'true') { InstallWithRetry 'Az' @{ Repository='PSGallery'; Force=$true; AllowClobber=$true; Scope='AllUsers'; AcceptLicense=$true } }; \
   if ($env:INSTALL_PESTER -eq 'true') { InstallWithRetry 'Pester' @{ Force=$true; Scope='AllUsers'; AcceptLicense=$true } }; \
@@ -92,7 +93,8 @@ RUN \
   Get-ChildItem -Path "$env:ProgramData\\Microsoft\\Windows\\PowerShell\\PowerShellGet" -Recurse -ErrorAction SilentlyContinue | Remove-Item -Force -Recurse -ErrorAction SilentlyContinue
 
 # Set an all-users, all-hosts PowerShell profile to prefer system-default TLS
-RUN \
+RUN pwsh -Command \
+  "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue'; \
   $content = 'try { [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::SystemDefault -bor 3072 -bor 768 -bor 192 } catch { }'; \
   $profiles = 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\profile.ps1','C:\\Program Files\\PowerShell\\7\\profile.ps1'; \
   foreach ($p in $profiles) { $dir = Split-Path -Path $p; if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }; Set-Content -Path $p -Value $content -Encoding UTF8 }
